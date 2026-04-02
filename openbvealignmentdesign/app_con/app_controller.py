@@ -3,6 +3,7 @@ from ezdxf.addons.hpgl2.plotter import Plotter
 from data.segment.segment_collection.segment_collection import SegmentCollection
 from event.event_controller import EventController
 from mid_edit.mid_editor import MidPointEditor
+from seg_edit.segment_editor import SegmentCollectionEditor
 from ui.main_app_ui import SegmentVisualizer
 from pi_edit.pi_editor import PIEditor
 
@@ -24,6 +25,11 @@ class AppController:
             events=self.event_controller)
 
         self.mid_editor = MidPointEditor()
+
+        self.collection_editor = SegmentCollectionEditor(
+            segmentcollection=self.collection,
+            events=self.event_controller
+        )
 
     def run(self):
         self.app.mainloop()

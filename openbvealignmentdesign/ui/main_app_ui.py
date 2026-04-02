@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 
 from matplotlib.backends._backend_tk import NavigationToolbar2Tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -49,13 +49,13 @@ class SegmentVisualizer(tk.Tk):
 
         self.view_map_mode = tk.BooleanVar(value=False)
         ttk.Checkbutton(control, text="지도 보기", variable=self.view_map_mode,
-                        command=lambda: self.update_plot("지도 갱신")).pack(side=tk.LEFT, padx=10)
+                        command=lambda: self.event_controller.emit("map_view_mode_changed")).pack(side=tk.LEFT, padx=10)
 
         ttk.Button(control, text="곡선 추가", command=self.add_curve_ui).pack(side=tk.LEFT, padx=10)
         ttk.Button(control, text="곡선 변경", command=self.update_radius_ui).pack(side=tk.LEFT, padx=10)
 
         # ✅ 지도 갱신 버튼 추가
-        ttk.Button(control, text="지도 갱신", command=self.update_map_zoom).pack(side=tk.LEFT, padx=10)
+        ttk.Button(control, text="지도 갱신", command=self.event_controller.emit('map_updated')).pack(side=tk.LEFT, padx=10)
 
         # ✅저장 버튼 추가
         ttk.Button(control, text="저장", command=self.save_to_json).pack(side=tk.LEFT, padx=10)
@@ -68,10 +68,10 @@ class SegmentVisualizer(tk.Tk):
         self._overlay_artists = []
 
         # 이벤트 등록
-        self.canvas.mpl_connect('pick_event', self.on_pick)
-        self.canvas.mpl_connect('motion_notify_event', self.on_drag)
-        self.canvas.mpl_connect('button_release_event', self.on_release)
-        self.canvas.mpl_connect('button_press_event', self.add_pi)
+        self.ploter.canvas.mpl_connect('pick_event', self.on_pick)
+        self.ploter.canvas.mpl_connect('motion_notify_event', self.on_drag)
+        self.ploter.canvas.mpl_connect('button_release_event', self.on_release)
+        self.ploter.canvas.mpl_connect('button_press_event', self.add_pi)
 
     def add_pi(self, event):
         """마우스 클릭으로 PI 추가"""
@@ -90,6 +90,7 @@ class SegmentVisualizer(tk.Tk):
         try:
             # 이벤트 발생만 담당
             self.event_controller.emit('pi_added', coord)
+            self.event_controller.emit('pi_added_finish', coord)
         except Exception as e:
             messagebox.showerror("PI 추가 오류", f'{e}')
 
@@ -100,6 +101,7 @@ class SegmentVisualizer(tk.Tk):
         pi_idx = self.pi_index_var.get()
         try:
             self.event_controller.emit('pi_removed', is_only_remove_curve, pi_idx)
+            self.event_controller.emit('pi_removed_finish', is_only_remove_curve, pi_idx)
         except Exception as e:
             messagebox.showerror("PI 삭제 오류", f'{e}')
 
@@ -107,6 +109,7 @@ class SegmentVisualizer(tk.Tk):
         """컬렉션 초기화"""
         try:
             self.event_controller.emit('reset_to_initial')
+            self.event_controller.emit('reset_to_initial_finish')
         except Exception as e:
             messagebox.showerror('초기화 중 오류 발생',f'{e}')
 
@@ -121,6 +124,7 @@ class SegmentVisualizer(tk.Tk):
         try:
             # 이벤트 발생만 담당
             self.event_controller.emit('curve_added', idx, radius)
+            self.event_controller.emit('curve_added_finish', idx, radius)
             messagebox.showinfo("완료", f"PI {idx}에 반경 {radius:.2f}m 곡선 추가 완료")
         except Exception as e:
             messagebox.showerror("곡선 추가 에러", f'{e}')
@@ -135,14 +139,10 @@ class SegmentVisualizer(tk.Tk):
             if radius <= 0:
                 raise ValueError("반경은 양수여야 합니다.")
             self.event_controller.emit('curve_changed', idx, radius)
+            self.event_controller.emit('curve_changed_finish', idx, radius)
             messagebox.showinfo("완료", f"PI {idx}->곡선 변경 {radius:.2f}m")
         except Exception as e:
             messagebox.showerror("곡선 수정 에러", f'{e}')
-
-    def update_map_zoom(self):
-        pass
-    def update_map_mode(self):
-        pass
 
     # ────────────────────────────────
     # 드래그 이벤트
@@ -179,6 +179,7 @@ class SegmentVisualizer(tk.Tk):
 
         try:
             self.event_controller.emit('pi_dragged', new_point, self.dragging_index)
+            self.event_controller.emit('pi_dragged_finish', new_point)
 
         except Exception as e:
             messagebox.showerror('업데이트 실패', str(e))
@@ -187,15 +188,13 @@ class SegmentVisualizer(tk.Tk):
         if self.dragging_index is None and self.dragging_midpoint_seg is None:
             return
 
-        # 줌/이동 상태 저장
-        xlim = self.ax.get_xlim()
-        ylim = self.ax.get_ylim()
-
         try:
             if self.dragging_index is not None:
                 self.event_controller.emit('pi_dragged', self.dragging_index)
+                self.event_controller.emit('pi_dragged_finish', self.dragging_midpoint_seg)
             elif self.dragging_midpoint_seg is not None:
                 self.event_controller.emit('midpoint_dragged', self.dragging_midpoint_seg)
+                self.event_controller.emit('midpoint_dragged_finish', self.dragging_midpoint_seg)
         except Exception as e:
             messagebox.showerror('업데이트 실패', str(e))
 
@@ -204,9 +203,19 @@ class SegmentVisualizer(tk.Tk):
         self.dragging_midpoint_seg = None
 
     def save_to_json(self):
-        pass
+        try:
+            save_path = filedialog.asksaveasfilename()
+            self.event_controller.emit('save_to_json', save_path)
+            messagebox.showinfo("저장 완료", f"JSON 저장 완료: {save_path}")
+        except Exception as e:
+            messagebox.showerror('json 저장 실패', str(e))
     def load_from_json(self):
-        pass
+        try:
+            load_path = filedialog.askopenfilename()
+            self.event_controller.emit('load_from_json', load_path)
+            messagebox.showinfo("로드 완료", f"JSON 로드 완료: {load_path}")
+        except Exception as e:
+            messagebox.showerror('json 로드 실패', str(e))
 
     def _event_to_xy(self, event):
         """마우스 이벤트 → 내부 좌표(x,y) 변환 (공통 메서드)"""
@@ -220,31 +229,6 @@ class SegmentVisualizer(tk.Tk):
 
         return Point2d(x, y)
 
-    def update_plot(self, reason=None):
-        """UI에서 호출하는 전체 갱신 메서드"""
-        try:
-            # 현재 확대/이동 상태 저장
-            xlim = self.ploter.ax.get_xlim()
-            ylim = self.ploter.ax.get_ylim()
-
-            # Matplotter에게 실제 그리기 위임
-            self.ploter.update_plot(
-                force_xlim=xlim,
-                force_ylim=ylim,
-                zoom=None,
-                view_map_mode=self.view_map_mode.get()
-            )
-
-            # 확대/이동 상태 복원
-            self.ploter.ax.set_xlim(xlim)
-            self.ploter.ax.set_ylim(ylim)
-            self.ploter.canvas.draw_idle()
-
-            print(f"[Plot 갱신 완료] reason={reason}")
-
-        except Exception as e:
-            messagebox.showerror("갱신 실패", str(e))
-
 
     def _drag_mid_point(self, event):
         if self.dragging_midpoint_seg is None:
@@ -256,5 +240,6 @@ class SegmentVisualizer(tk.Tk):
             new_mid = self._event_to_xy(event)
             # 이벤트 발생만 담당
             self.event_controller.emit('midpoint_dragged', self.dragging_midpoint_seg, new_mid)
+            self.event_controller.emit('midpoint_dragged_finish', new_mid)
         except Exception as e:
             messagebox.showerror('업데이트 실패', str(e))

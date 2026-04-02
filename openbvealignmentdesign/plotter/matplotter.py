@@ -6,6 +6,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from pyproj import Transformer
 import contextily as ctx
 
+from data.segment.segment_helper import SegmentHelper
+
 transformer_to_3857 = Transformer.from_crs("EPSG:5186", "EPSG:3857", always_xy=True)
 transformer_to_5186 = Transformer.from_crs("EPSG:3857", "EPSG:5186", always_xy=True)
 
@@ -26,19 +28,19 @@ class Matplotter:
         self.toolbar.update()
 
         if self.events:
-            self.events.bind('pi_added', self.update_plot)
-            self.events.bind('pi_removed', self.update_plot)
-            self.events.bind('pi_changed', self.update_plot)
-            self.events.bind('reset_to_initial', self.update_plot)
-            self.events.bind('curve_added', self.update_plot)
-            self.events.bind('curve_changed', self.update_plot)
-            self.events.bind('pi_dragged', self.update_plot)
-            self.events.bind('midpoint_dragged', self.update_plot)
-
+            self.events.bind('pi_added_finish', self.update_plot)
+            self.events.bind('pi_removed_finish', self.update_plot)
+            self.events.bind('pi_changed_finish', self.update_plot)
+            self.events.bind('reset_to_initial_finish', self.update_plot)
+            self.events.bind('curve_added_finish', self.update_plot)
+            self.events.bind('curve_changed_finish', self.update_plot)
+            self.events.bind('pi_dragged_finish', self.update_plot)
+            self.events.bind('midpoint_dragged_finish', self.update_plot)
+            self.events.bind('map_view_mode_changed_finish', self.update_plot)
+            self.events.bind('map_updated_finish', self.update_plot)
 
     def update_plot(self, force_xlim=None, force_ylim=None, zoom=None, view_map_mode=None):
         """전체 다시 그림 — 외부에서 force_xlim/ylim/zoom 전달 가능"""
-        self.fig.clf()
         self.ax.clear()
 
         if view_map_mode:
@@ -101,7 +103,7 @@ class Matplotter:
         self.mid_scatters = []
 
         for seg in self.collection.segment_list:
-            pts = self.segment_to_xy(seg)
+            pts = SegmentHelper.segment_to_xy(seg)
             if not pts:
                 continue
 
@@ -118,53 +120,3 @@ class Matplotter:
                     mid = transformer_to_3857.transform(*mid)
                 scatter = self.ax.scatter(mid[0], mid[1], color='purple', s=40, zorder=6, picker=5)
                 self.mid_scatters.append((scatter, seg))
-
-    def segment_to_xy(self, seg):
-        """이동예정"""
-        if isinstance(seg, StraightSegment):
-            return [(seg.start_coord.x, seg.start_coord.y),
-                    (seg.end_coord.x, seg.end_coord.y)]
-        if isinstance(seg, CurveSegment):
-            x_arc, y_arc = draw_arc(seg.direction, seg.start_coord, seg.end_coord, seg.center_coord)
-            return list(zip(x_arc, y_arc))
-        return None
-
-    def update_map_zoom(self):
-        """현재 뷰 범위 기반으로 지도 타일만 다시 로드"""
-        if not self.view_map_mode.get():
-            messagebox.showinfo("안내", "지도 보기 모드를 먼저 켜세요.")
-            return
-
-        try:
-            xlim = self.ax.get_xlim()
-            ylim = self.ax.get_ylim()
-            dx = xlim[1] - xlim[0]
-            dy = ylim[1] - ylim[0]
-            max_dim = max(dx, dy)
-
-            import numpy as np
-            zoom = int(18 - np.log2(max_dim / 500))
-            zoom = int(np.clip(zoom, 5, 18))
-
-            # 현재 지도 타일만 다시 추가 (Axes는 그대로 유지)
-            # 기존 타일 제거
-            for im in list(self.ax.images):
-                im.remove()
-
-            # 새 타일 불러오기
-            ctx.add_basemap(
-                self.ax,
-                crs="EPSG:3857",
-                source=ctx.providers.OpenStreetMap.Mapnik,
-                zoom=zoom
-            )
-
-            # 기존 확대/이동 상태 그대로 복원
-            self.ax.set_xlim(xlim)
-            self.ax.set_ylim(ylim)
-            self.canvas.draw_idle()
-
-            print(f"[지도 갱신 완료] zoom={zoom}")
-
-        except Exception as e:
-            messagebox.showerror("지도 갱신 실패", str(e))
