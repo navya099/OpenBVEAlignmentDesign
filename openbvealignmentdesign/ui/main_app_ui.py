@@ -213,6 +213,7 @@ class SegmentVisualizer(tk.Tk):
         try:
             load_path = filedialog.askopenfilename()
             self.event_controller.emit('load_from_json', load_path)
+            self.event_controller.emit('load_from_json_finish', load_path)
             messagebox.showinfo("로드 완료", f"JSON 로드 완료: {load_path}")
         except Exception as e:
             messagebox.showerror('json 로드 실패', str(e))

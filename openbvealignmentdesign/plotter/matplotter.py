@@ -38,6 +38,7 @@ class Matplotter:
             self.events.bind('midpoint_dragged_finish', self.update_plot)
             self.events.bind('map_view_mode_changed_finish', self.update_plot)
             self.events.bind('map_updated_finish', self.update_plot)
+            self.events.bind('load_from_json_finish', self.update_plot)
 
     def update_plot(self, force_xlim=None, force_ylim=None, zoom=None, view_map_mode=None):
         """전체 다시 그림 — 외부에서 force_xlim/ylim/zoom 전달 가능"""
@@ -99,7 +100,7 @@ class Matplotter:
             print(f"[지도 로드 실패]: {e}, zoom={zoom}")
 
     def _draw_segments(self, view_map_mode):
-        colors = {"StraightSegment": "blue", "CurveSegment": "orange", "CUBICSegment": "green"}
+
         self.mid_scatters = []
 
         for seg in self.collection.segment_list:
@@ -111,10 +112,10 @@ class Matplotter:
                 pts = [transformer_to_3857.transform(x, y) for x, y in pts]
 
             x, y = zip(*pts)
-            color = colors.get(seg.__class__.__name__, "gray")
+            color = SegmentHelper.get_color(seg)
             self.ax.plot(x, y, color=color, lw=2, zorder=2)
 
-            mid = seg.midpoint
+            mid = SegmentHelper.get_midpoint(seg)
             if mid:
                 if view_map_mode:
                     mid = transformer_to_3857.transform(*mid)

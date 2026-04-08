@@ -1,6 +1,4 @@
-from ezdxf.addons.hpgl2.plotter import Plotter
-
-from data.segment.segment_collection.segment_collection import SegmentCollection
+from data.segment.segment_collection import SegmentCollection
 from event.event_controller import EventController
 from mid_edit.mid_editor import MidPointEditor
 from seg_edit.segment_editor import SegmentCollectionEditor
