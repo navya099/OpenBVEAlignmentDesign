@@ -19,7 +19,7 @@ class Matplotter:
 
         # matplotlib figure
         self.fig, self.ax = plt.subplots(figsize=(8, 6))
-
+        self.ax.set_facecolor('black')
         # canvas와 toolbar를 master에 붙임
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -42,6 +42,10 @@ class Matplotter:
 
     def update_plot(self, force_xlim=None, force_ylim=None, zoom=None, view_map_mode=None):
         """전체 다시 그림 — 외부에서 force_xlim/ylim/zoom 전달 가능"""
+        # 줌/이동 유지
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+
         self.ax.clear()
 
         if view_map_mode:
@@ -51,6 +55,11 @@ class Matplotter:
                                    force_ylim=force_ylim)
 
         self._draw_segments(view_map_mode)
+
+        # 축 복원
+        self.ax.set_xlim(xlim)
+        self.ax.set_ylim(ylim)
+
         self.canvas.draw_idle()
 
     def _draw_map_basemap(self, zoom=None, force_xlim=None, force_ylim=None):

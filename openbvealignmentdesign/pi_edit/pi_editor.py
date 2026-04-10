@@ -15,14 +15,17 @@ class PIEditor:
     def update_pi(self, point, index):
         """마우스 클릭으로 PI 갱신"""
         try:
-            self.collection.update_pi_and_radius_by_index(pipoint=point, radius=None, index=index)
+            if index != 0 and index != len(self.collection.coord_list) - 1:
+                self.collection.update_pi_and_radius_by_index(pipoint=point, radius=None, index=index)
+            else:
+                self.collection.update_bp_ep(index=index, point=point)
         except Exception as e:
             raise e
 
-    def add_pi(self, coord):
+    def add_pi(self, coord, radius):
         """마우스 클릭으로 PI 추가"""
         try:
-            self.collection.update_pi_and_radius_by_index(coord)
+            self.collection.add_pi(pipoint=coord, radius=radius)
         except Exception as e:
             raise e
 

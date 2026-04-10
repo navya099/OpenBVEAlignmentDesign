@@ -192,10 +192,10 @@ class SegmentVisualizer(tk.Tk):
         try:
             if self.dragging_index is not None:
                 self.event_controller.emit('pi_dragged', new_point, self.dragging_index)
-                self.event_controller.emit('pi_dragged_finish', self.dragging_midpoint_seg)
+                self.event_controller.emit('pi_dragged_finish')
             elif self.dragging_midpoint_seg is not None:
-                self.event_controller.emit('midpoint_dragged', self.dragging_midpoint_seg)
-                self.event_controller.emit('midpoint_dragged_finish', self.dragging_midpoint_seg)
+                self.event_controller.emit('midpoint_dragged', self.dragging_midpoint_seg, new_point)
+                self.event_controller.emit('midpoint_dragged_finish')
         except Exception as e:
             messagebox.showerror('업데이트 실패', str(e))
 

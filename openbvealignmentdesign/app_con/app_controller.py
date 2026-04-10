@@ -22,7 +22,7 @@ class AppController:
             collection=self.collection,
             events=self.event_controller)
 
-        self.mid_editor = MidPointEditor()
+        self.mid_editor = MidPointEditor(collection=self.collection, events=self.event_controller)
 
         self.collection_editor = SegmentCollectionEditor(
             segmentcollection=self.collection,
