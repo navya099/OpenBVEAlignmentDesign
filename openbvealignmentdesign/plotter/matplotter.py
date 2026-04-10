@@ -38,7 +38,7 @@ class Matplotter:
             self.events.bind('midpoint_dragged_finish', self.update_plot)
             self.events.bind('map_view_mode_changed_finish', self.update_plot)
             self.events.bind('map_updated_finish', self.update_plot)
-            self.events.bind('load_from_json_finish', self.update_plot)
+            self.events.bind('load_from_json_finish', self.reset_view_to_data)
 
     def update_plot(self, force_xlim=None, force_ylim=None, zoom=None, view_map_mode=None):
         """전체 다시 그림 — 외부에서 force_xlim/ylim/zoom 전달 가능"""
@@ -56,9 +56,13 @@ class Matplotter:
 
         self._draw_segments(view_map_mode)
 
-        # 축 복원
-        self.ax.set_xlim(xlim)
-        self.ax.set_ylim(ylim)
+        # 축 복원 또는 강제 적용
+        if force_xlim is not None and force_ylim is not None:
+            self.ax.set_xlim(force_xlim)
+            self.ax.set_ylim(force_ylim)
+        else:
+            self.ax.set_xlim(xlim)
+            self.ax.set_ylim(ylim)
 
         self.canvas.draw_idle()
 
@@ -158,3 +162,17 @@ class Matplotter:
 
         self.ax.set_aspect('equal', adjustable='datalim')
         self.ax.grid(False)
+
+    def reset_view_to_data(self):
+        """JSON LOAD 완료 시 데이터 전체 범위로 축 초기화"""
+        if not self.collection.coord_list:
+            return
+
+        xs = [p.x for p in self.collection.coord_list]
+        ys = [p.y for p in self.collection.coord_list]
+
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+
+        # update_plot 호출 시 force_xlim/ylim 전달
+        self.update_plot(force_xlim=(x_min, x_max), force_ylim=(y_min, y_max))
