@@ -8,13 +8,21 @@ class PIEditor:
         self.collection = collection
 
         if self.events:
+            self.events.bind('pi_dragged', self.update_pi)
             self.events.bind('pi_removed', self.remove_pi)
             self.events.bind('pi_added', self.add_pi)
+
+    def update_pi(self, point, index):
+        """마우스 클릭으로 PI 갱신"""
+        try:
+            self.collection.update_pi_and_radius_by_index(pipoint=point, radius=None, index=index)
+        except Exception as e:
+            raise e
 
     def add_pi(self, coord):
         """마우스 클릭으로 PI 추가"""
         try:
-            self.collection.add_pi_by_coord(coord)
+            self.collection.update_pi_and_radius_by_index(coord)
         except Exception as e:
             raise e
 
@@ -22,8 +30,8 @@ class PIEditor:
         """PI삭제"""
         try:
             if is_only_remove_curve:
-                self.collection.remove_curve_at_pi_by_index(idx)
+                self.collection.update_pi_and_radius_by_index(idx)
             else:
-                self.collection.remove_pi_at_index(idx)
+                self.collection.update_pi_and_radius_by_index(idx)
         except Exception as e:
             raise e

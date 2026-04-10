@@ -22,8 +22,6 @@ class SegmentVisualizer(tk.Tk):
     def __init__(self, event_controller, collection):
         super().__init__()
         self.collection = collection
-        self.mid_scatters = None
-        self.pi_scatter = None
         self.dragging_midpoint_seg = None
         self.dragging_midpoint_index = None
         self.title("OPENBVE용 선형설계 프로그램")
@@ -150,13 +148,13 @@ class SegmentVisualizer(tk.Tk):
 
     def on_pick(self, event):
         # PI인지 확인
-        if event.artist == self.pi_scatter:
+        if event.artist == self.ploter.pi_scatter:
             self.dragging_index = event.ind[0]
             self.dragging_midpoint_seg = None
             return
 
         # MIDPOINT인지 확인
-        for scatter, seg in self.mid_scatters:
+        for scatter, seg in self.ploter.mid_scatters:
             if event.artist == scatter:
                 self.dragging_midpoint_seg = seg
                 self.dragging_index = None
@@ -176,7 +174,8 @@ class SegmentVisualizer(tk.Tk):
             return
 
         new_point = self._event_to_xy(event)
-
+        if new_point is None:
+            return
         try:
             self.event_controller.emit('pi_dragged', new_point, self.dragging_index)
             self.event_controller.emit('pi_dragged_finish', new_point)
@@ -187,10 +186,12 @@ class SegmentVisualizer(tk.Tk):
     def on_release(self, event):
         if self.dragging_index is None and self.dragging_midpoint_seg is None:
             return
-
+        new_point = self._event_to_xy(event)
+        if new_point is None:
+            return
         try:
             if self.dragging_index is not None:
-                self.event_controller.emit('pi_dragged', self.dragging_index)
+                self.event_controller.emit('pi_dragged', new_point, self.dragging_index)
                 self.event_controller.emit('pi_dragged_finish', self.dragging_midpoint_seg)
             elif self.dragging_midpoint_seg is not None:
                 self.event_controller.emit('midpoint_dragged', self.dragging_midpoint_seg)

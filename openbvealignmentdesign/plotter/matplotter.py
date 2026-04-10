@@ -121,3 +121,31 @@ class Matplotter:
                     mid = transformer_to_3857.transform(*mid)
                 scatter = self.ax.scatter(mid[0], mid[1], color='purple', s=40, zorder=6, picker=5)
                 self.mid_scatters.append((scatter, seg))
+        self._draw_pi(view_map_mode)
+
+    def _draw_pi(self, view_map_mode):
+        # --- PI ---
+        if view_map_mode:
+            pi_pts = [transformer_to_3857.transform(pt.x, pt.y)
+                      for pt in self.collection.coord_list]
+        else:
+            pi_pts = [(pt.x, pt.y) for pt in self.collection.coord_list]
+
+        x, y = zip(*pi_pts)
+        self.pi_scatter = self.ax.scatter(x, y, color='red', marker='x', s=60,
+                                          zorder=6, picker=5)
+        self.ax.plot(x, y, color='red', linestyle='--', lw=1, zorder=4)
+
+        # --- PI 텍스트 ---
+        for i, (px, py) in enumerate(pi_pts):
+            if i == 0:
+                label = "BP"
+            elif i == len(pi_pts) - 1:
+                label = "EP"
+            else:
+                label = f"IP.{i}"
+            self.ax.text(px, py + 20, label, fontsize=9, ha='center', va='bottom',
+                         bbox=dict(facecolor='white', alpha=0.6, edgecolor='none'))
+
+        self.ax.set_aspect('equal', adjustable='datalim')
+        self.ax.grid(False)
