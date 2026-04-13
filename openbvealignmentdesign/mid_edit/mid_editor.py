@@ -32,5 +32,4 @@ class MidPointEditor:
 
         new_r = new_e / (1 / math.cos(group.internal_angle / 2) - 1)
 
-        with Transaction(self.collection):
-            self.collection.update_pi_and_radius_by_index(pipoint=None, radius=new_r, index=gr_indx)
+        self.collection.update_pi_and_radius_by_index(pipoint=None, radius=new_r, index=gr_indx)

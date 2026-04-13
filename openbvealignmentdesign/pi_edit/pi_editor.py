@@ -22,10 +22,10 @@ class PIEditor:
         except Exception as e:
             raise e
 
-    def add_pi(self, coord, radius):
+    def add_pi(self, coord):
         """마우스 클릭으로 PI 추가"""
         try:
-            self.collection.add_pi(pipoint=coord, radius=radius)
+            self.collection.add_pi(pipoint=coord, radius=None)
         except Exception as e:
             raise e
 

@@ -60,7 +60,7 @@ class SegmentVisualizer(tk.Tk):
 
         # ✅로드 버튼 추가
         ttk.Button(control, text="로드", command=self.load_from_json).pack(side=tk.LEFT, padx=10)
-
+        ttk.Button(control, text="종료", command=self.destroy).pack(side=tk.LEFT, padx=10)
         # 상태
         self.dragging_index = None
         self._overlay_artists = []
@@ -214,7 +214,7 @@ class SegmentVisualizer(tk.Tk):
         try:
             load_path = filedialog.askopenfilename()
             self.event_controller.emit('load_from_json', load_path)
-            self.event_controller.emit('load_from_json_finish', load_path)
+            self.event_controller.emit('load_from_json_finish')
             messagebox.showinfo("로드 완료", f"JSON 로드 완료: {load_path}")
         except Exception as e:
             messagebox.showerror('json 로드 실패', str(e))
