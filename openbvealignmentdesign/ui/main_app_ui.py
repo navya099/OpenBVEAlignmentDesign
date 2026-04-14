@@ -37,13 +37,12 @@ class SegmentVisualizer(tk.Tk):
         self.pi_index_var = tk.IntVar(value=1)
         ttk.Entry(control, textvariable=self.pi_index_var, width=5).pack(side=tk.LEFT)
         ttk.Button(control, text="PI 삭제", command=self.remove_pi).pack(side=tk.LEFT, padx=5)
+        ttk.Button(control, text="곡선 삭제", command=self.remove_curve).pack(side=tk.LEFT, padx=5)
         ttk.Button(control, text="초기화", command=self.reset_to_initial).pack(side=tk.LEFT, padx=5)
 
         self.add_pi_mode = tk.BooleanVar(value=False)
         ttk.Checkbutton(control, text="PI 추가", variable=self.add_pi_mode).pack(side=tk.LEFT, padx=10)
 
-        self.remove_curve_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(control, text="곡선만 삭제", variable=self.remove_curve_var).pack(side=tk.LEFT, padx=10)
 
         self.view_map_mode = tk.BooleanVar(value=False)
         ttk.Checkbutton(control, text="지도 보기", variable=self.view_map_mode,
@@ -95,13 +94,21 @@ class SegmentVisualizer(tk.Tk):
     #객체관리
     def remove_pi(self):
         """PI삭제"""
-        is_only_remove_curve = self.remove_curve_var.get()
         pi_idx = self.pi_index_var.get()
         try:
-            self.event_controller.emit('pi_removed', is_only_remove_curve, pi_idx)
-            self.event_controller.emit('pi_removed_finish', is_only_remove_curve, pi_idx)
+            self.event_controller.emit('pi_removed', pi_idx)
+            self.event_controller.emit('pi_removed_finish')
         except Exception as e:
             messagebox.showerror("PI 삭제 오류", f'{e}')
+
+    def remove_curve(self):
+        """곡선삭제"""
+        pi_idx = self.pi_index_var.get()
+        try:
+            self.event_controller.emit('curve_removed', pi_idx)
+            self.event_controller.emit('curve_removed_finish')
+        except Exception as e:
+            messagebox.showerror("곡선 삭제 오류", f'{e}')
 
     def reset_to_initial(self):
         """컬렉션 초기화"""
@@ -136,7 +143,7 @@ class SegmentVisualizer(tk.Tk):
                 raise ValueError("반경이 유효하지 앖습니다.")
             if radius <= 0:
                 raise ValueError("반경은 양수여야 합니다.")
-            self.event_controller.emit('curve_changed', idx, radius)
+            self.event_controller.emit('curve_updated', idx, radius)
             self.event_controller.emit('curve_changed_finish', idx, radius)
             messagebox.showinfo("완료", f"PI {idx}->곡선 변경 {radius:.2f}m")
         except Exception as e:

@@ -1,3 +1,4 @@
+from curve_edit.curve_editor import CurveEditor
 from data.segment.segment_collection import SegmentCollection
 from event.event_controller import EventController
 from mid_edit.mid_editor import MidPointEditor
@@ -28,6 +29,7 @@ class AppController:
             segmentcollection=self.collection,
             events=self.event_controller
         )
+        self.curve_editor = CurveEditor(collection=self.collection, events=self.event_controller)
 
     def run(self):
         self.app.mainloop()
