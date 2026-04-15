@@ -34,6 +34,7 @@ class Matplotter:
             self.events.bind('reset_to_initial_finish', self.update_plot)
             self.events.bind('curve_added_finish', self.update_plot)
             self.events.bind('curve_changed_finish', self.update_plot)
+            self.events.bind('curve_removed_finish', self.update_plot)
             self.events.bind('pi_dragged_finish', self.update_plot)
             self.events.bind('midpoint_dragged_finish', self.update_plot)
             self.events.bind('map_view_mode_changed_finish', self.update_plot)
