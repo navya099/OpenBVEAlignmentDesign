@@ -17,10 +17,10 @@ from ui.design_tokens import C
 class SegmentVisualizer(tk.Tk):
     """CAD 산업용 리본 툴바 스타일 선형설계 프로그램"""
 
-    def __init__(self, event_controller, collection):
+    def __init__(self, controller, collection):
         super().__init__()
         self.collection            = collection
-        self.event_controller      = event_controller
+        self.controller      = controller #appcontroller
 
         # ── 상태 변수는 app이 선언 (UIBuilder가 참조)
         self.pi_index_var = tk.IntVar(value=1)
@@ -33,12 +33,11 @@ class SegmentVisualizer(tk.Tk):
         self.dragging_index        = None
         self.dragging_midpoint_seg = None
         self._overlay_artists = []
-
+        self.ploter = None
         self._configure_window()
-
+        self.canvas_frams = None
         # ── UI 조립은 builder에 위임
         UIBuilder(self).build()
-
         self._bind_traces()
 
     def _configure_window(self):
@@ -86,22 +85,23 @@ class SegmentVisualizer(tk.Tk):
         self.coord_var.set(f"X: {x:>12,.2f}  Y: {y:>12,.2f}")
 
     def _event_to_xy(self, event):
+        """Matplotlib 이벤트를 물리 좌표(숫자)로 변환"""
         if event.xdata is None or event.ydata is None:
             return None
+
+        x, y = event.xdata, event.ydata
+
+        # 좌표계 변환은 UI가 지도 모드 상태를 알고 있으므로 여기서 처리
         if self.view_map_mode.get():
             try:
                 from pyproj import Transformer
                 t = Transformer.from_crs("EPSG:3857", "EPSG:5186", always_xy=True)
-                x, y = t.transform(event.xdata, event.ydata)
+                x, y = t.transform(x, y)
             except Exception:
-                x, y = event.xdata, event.ydata
-        else:
-            x, y = event.xdata, event.ydata
-        try:
-            from AutoCAD.point2d import Point2d
-            return Point2d(x, y)
-        except ImportError:
-            return (x, y)
+                pass  # 변환 실패 시 원본 좌표 사용
+
+        # Point2d 객체로 만드는 대신, 순수 데이터(Tuple)를 컨트롤러에 전달
+        return x, y
 
     # ══════════════════════════════════
     # 이벤트 핸들러 (원본 로직 유지)
@@ -112,71 +112,26 @@ class SegmentVisualizer(tk.Tk):
         coord = self._event_to_xy(event)
         if coord is None:
             return
-        try:
-            self.event_controller.emit('pi_added', coord)
-            self.event_controller.emit('pi_added_finish')
-            self.set_status("PI 추가 완료")
-        except Exception as e:
-            messagebox.showerror("PI 추가 오류", str(e))
+        self.controller.pi_ctrl.request_add_pi(coord)
 
     def remove_pi(self):
         idx = self.pi_index_var.get()
-        try:
-            self.event_controller.emit('pi_removed', idx)
-            self.event_controller.emit('pi_removed_finish')
-            self.set_status(f"PI {idx} 삭제 완료")
-        except Exception as e:
-            messagebox.showerror("PI 삭제 오류", str(e))
+        self.controller.pi_ctrl.request_remove_pi(idx)
 
     def remove_curve(self):
         idx = self.pi_index_var.get()
-        try:
-            self.event_controller.emit('curve_removed', idx)
-            self.event_controller.emit('curve_removed_finish')
-            self.set_status(f"PI {idx} 곡선 삭제 완료")
-        except Exception as e:
-            messagebox.showerror("곡선 삭제 오류", str(e))
+        self.controller.curve_ctrl.request_remove_curve(idx)
 
     def reset_to_initial(self):
-        if not messagebox.askyesno("초기화 확인",
-                                   "모든 PI와 곡선을 초기화하시겠습니까?"):
-            return
-        try:
-            self.event_controller.emit('reset_to_initial')
-            self.event_controller.emit('reset_to_initial_finish')
-            self.set_status("초기화 완료")
-        except Exception as e:
-            messagebox.showerror("초기화 오류", str(e))
+        self.controller.request_reset_to_initial()
 
     def add_curve_ui(self):
         idx = self.pi_index_var.get()
-        radius = simpledialog.askfloat("곡선 추가",
-                                       f"PI {idx}  곡선 반경 R (m):",
-                                       parent=self, minvalue=0.1)
-        if not radius:
-            return
-        try:
-            self.event_controller.emit('curve_added', idx, radius)
-            self.event_controller.emit('curve_added_finish')
-            self.set_status(f"PI {idx}  곡선 추가: R = {radius:.1f} m")
-            messagebox.showinfo("완료", f"PI {idx}  →  R = {radius:.2f} m  추가 완료")
-        except Exception as e:
-            messagebox.showerror("곡선 추가 오류", str(e))
+        self.controller.curve_ctrl.request_add_curve(idx)
 
     def update_radius_ui(self):
         idx = self.pi_index_var.get()
-        radius = simpledialog.askfloat("곡선 변경",
-                                       f"PI {idx}  새 곡선 반경 R (m):",
-                                       parent=self, minvalue=0.1)
-        if not radius:
-            return
-        try:
-            self.event_controller.emit('curve_updated', idx, radius)
-            self.event_controller.emit('curve_changed_finish')
-            self.set_status(f"PI {idx}  곡선 변경: R = {radius:.1f} m")
-            messagebox.showinfo("완료", f"PI {idx}  →  R = {radius:.2f} m  변경 완료")
-        except Exception as e:
-            messagebox.showerror("곡선 변경 오류", str(e))
+        self.controller.curve_ctrl.request_edit_to_curve_radius(idx)
 
     def on_pick(self, event):
         if not hasattr(self, 'ploter'):
@@ -195,30 +150,17 @@ class SegmentVisualizer(tk.Tk):
         if event.xdata and event.ydata:
             self.set_coord(event.xdata, event.ydata)
         if self.dragging_index is not None:
-            self._drag_pi(event)
+            p = self._event_to_xy(event)
+            if p is None:
+                return
+            self.controller.pi_ctrl.request_edit_pi(p, self.dragging_index)
+
         elif self.dragging_midpoint_seg is not None:
-            self._drag_mid_point(event)
+            p = self._event_to_xy(event)
+            if p is None:
+                return
 
-    def _drag_pi(self, event):
-        p = self._event_to_xy(event)
-        if p is None:
-            return
-        try:
-            self.event_controller.emit('pi_dragged', p, self.dragging_index)
-            self.event_controller.emit('pi_dragged_finish')
-        except Exception as e:
-            messagebox.showerror("드래그 오류", str(e))
-
-    def _drag_mid_point(self, event):
-        p = self._event_to_xy(event)
-        if p is None:
-            return
-        try:
-            self.event_controller.emit('midpoint_dragged',
-                                       self.dragging_midpoint_seg, p)
-            self.event_controller.emit('midpoint_dragged_finish')
-        except Exception as e:
-            messagebox.showerror("드래그 오류", str(e))
+            self.controller.mid_ctrl.request_edit_mid_point(self.dragging_midpoint_seg, p)
 
     def on_release(self, event):
         if self.dragging_index is None and self.dragging_midpoint_seg is None:
@@ -226,43 +168,28 @@ class SegmentVisualizer(tk.Tk):
         p = self._event_to_xy(event)
         if p is None:
             return
-        try:
-            if self.dragging_index is not None:
-                self.event_controller.emit('pi_dragged', p, self.dragging_index)
-                self.event_controller.emit('pi_dragged_finish')
-                self.set_status(f"PI {self.dragging_index} 이동 완료")
-            else:
-                self.event_controller.emit('midpoint_dragged',
-                                           self.dragging_midpoint_seg, p)
-                self.event_controller.emit('midpoint_dragged_finish')
-                self.set_status("중간점 이동 완료")
-        except Exception as e:
-            messagebox.showerror("업데이트 실패", str(e))
+        if self.dragging_index is not None:
+            self.controller.pi_ctrl.request_edit_pi(p, self.dragging_index)
+        else:
+            self.controller.mid_ctrl.request_edit_mid_point(self.dragging_midpoint_seg, p)
         self.dragging_index = None
         self.dragging_midpoint_seg = None
 
     def save_to_json(self):
-        path = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("JSON 파일", "*.json"), ("모든 파일", "*.*")])
-        if not path:
-            return
-        try:
-            self.event_controller.emit('save_to_json', path)
-            self.set_status(f"저장 완료: {path}")
-            messagebox.showinfo("저장 완료", f"저장:\n{path}")
-        except Exception as e:
-            messagebox.showerror("저장 실패", str(e))
-
+        self.controller.file_ctrl.request_save()
     def load_from_json(self):
-        path = filedialog.askopenfilename(
-            filetypes=[("JSON 파일", "*.json"), ("모든 파일", "*.*")])
-        if not path:
-            return
-        try:
-            self.event_controller.emit('load_from_json', path)
-            self.event_controller.emit('load_from_json_finish')
-            self.set_status(f"로드 완료: {path}")
-            messagebox.showinfo("로드 완료", f"로드:\n{path}")
-        except Exception as e:
-            messagebox.showerror("로드 실패", str(e))
+        self.controller.file_ctrl.request_load()
+
+    def setup_plotter(self, plotter_class, events):
+        """외부에서 주입된 플로터 클래스를 캔버스 프레임에 장착"""
+        self.ploter = plotter_class(
+            master=self.canvas_frams,  # 빌더가 만든 빈 자리
+            events=events,
+            collection=self.collection
+        )
+
+        # 이벤트 연결 (이건 UI 영역이므로 유지)
+        self.ploter.canvas.mpl_connect('pick_event', self.on_pick)
+        self.ploter.canvas.mpl_connect('motion_notify_event', self.on_drag)
+        self.ploter.canvas.mpl_connect('button_release_event', self.on_release)
+        self.ploter.canvas.mpl_connect('button_press_event', self.add_pi_click)

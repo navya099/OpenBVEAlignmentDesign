@@ -115,24 +115,11 @@ class UIBuilder:
 
     # ── 캔버스 영역 ─────────────────────
     def _build_workspace(self):
-        from plotter.matplotter import Matplotter
 
         canvas_frame = tk.Frame(self.app, bg=C["canvas_bg"],
                                 highlightthickness=0)
         canvas_frame.pack(fill=tk.BOTH, expand=True)
         self.app.canvas_frame = canvas_frame  # app에 참조 저장
-
-        ploter = Matplotter(
-            master=canvas_frame,
-            events=self.app.event_controller,
-            collection=self.app.collection,
-        )
-        self.app.ploter = ploter  # app에 참조 저장
-
-        ploter.canvas.mpl_connect('pick_event',           self.app.on_pick)
-        ploter.canvas.mpl_connect('motion_notify_event',  self.app.on_drag)
-        ploter.canvas.mpl_connect('button_release_event', self.app.on_release)
-        ploter.canvas.mpl_connect('button_press_event',   self.app.add_pi_click)
 
     # ── 상태바 ─────────────────────────
     def _build_statusbar(self):

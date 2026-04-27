@@ -11,6 +11,7 @@ class PIEditor:
             self.events.bind('pi_dragged', self.update_pi)
             self.events.bind('pi_removed', self.remove_pi)
             self.events.bind('pi_added', self.add_pi)
+            self.events.bind('reset_to_initial', self.reset)
 
     def update_pi(self, point, index):
         """마우스 클릭으로 PI 갱신"""
@@ -33,5 +34,12 @@ class PIEditor:
         """PI삭제"""
         try:
             self.collection.remove_pi(idx)
+        except Exception as e:
+            raise e
+
+    def reset(self):
+        """모든 PI삭제(초기화)"""
+        try:
+            self.collection.reset()
         except Exception as e:
             raise e
