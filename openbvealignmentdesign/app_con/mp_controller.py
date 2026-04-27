@@ -17,6 +17,7 @@ class MidPointController:
             coord = self._to_point(point)
             self.events.emit('midpoint_dragged', seg, coord)
             self.events.emit('midpoint_dragged_finish')
+
         except Exception as e:
             messagebox.showerror("드래그 오류", str(e))
 

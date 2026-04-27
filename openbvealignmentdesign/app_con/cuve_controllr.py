@@ -33,3 +33,33 @@ class CurveController:
             self.app.set_status(f"PI {idx} 곡선 삭제 완료")
         except Exception as e:
             messagebox.showerror("곡선 삭제 오류", str(e))
+
+    # controller/curve_controller.py
+
+    def request_edit_to_curve_radius(self, idx):
+        """곡선 변경 처리"""
+        # 1. 현재 값 가져오기 (AppController를 통해 collection 접근)
+        try:
+            # collection의 radius_list에서 해당 인덱스의 값을 가져옴
+            current_radius = self.app.collection.get_radius_at(idx)
+        except (IndexError, AttributeError):
+            current_radius = 0.0
+
+        # 2. UI 입력 (현재 값을 초기값으로 제공)
+        radius = simpledialog.askfloat(
+            "곡선반경 변경",
+            f"새 곡선 반경 R (m):",
+            parent=self.app,
+            minvalue=0.1,
+            initialvalue=current_radius  # 사용자가 기존 값을 확인하며 수정 가능
+        )
+
+        if radius is None: return
+
+        # 3. 비즈니스 신호 발생
+        try:
+            self.events.emit('curve_updated', idx, radius)
+            self.events.emit('curve_changed_finish')
+            self.app.set_status(f"PI {idx} 곡선 변경 완료: R={radius}")
+        except Exception as e:
+            messagebox.showerror("곡선 변경 오류", str(e))

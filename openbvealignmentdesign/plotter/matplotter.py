@@ -48,6 +48,13 @@ class Matplotter:
         ylim = self.ax.get_ylim()
 
         self.ax.clear()
+        self.ax.set_facecolor('black')
+
+        if not self.collection.coord_list:
+            self.ax.set_xlim(xlim)
+            self.ax.set_ylim(ylim)
+            self.canvas.draw_idle()  # <--- 데이터가 없을 때도 화면을 갱신해줘야 함
+            return
 
         if view_map_mode:
             # 전달된 force_* 를 _draw_map_basemap 에서 사용하게 함

@@ -59,10 +59,12 @@ class UIBuilder:
         g_pi.pack(side=tk.LEFT, fill=tk.Y)
         g_pi.add_toggle("📍", "PI추가", self.app.add_pi_mode,
                         tip="활성화 후 캔버스 클릭 → PI 추가")
+        g_pi.add_btn("✎", "PI편집", self.app.edit_pi,
+                     accent=C["red"],
+                     tip="선택한 인덱스의 PI를 수정합니다")
         g_pi.add_btn("✂", "PI삭제", self.app.remove_pi,
                      accent=C["red"],
                      tip="선택한 인덱스의 PI를 삭제합니다")
-
         GroupSep(ribbon).pack(side=tk.LEFT)
 
         g_curve = ToolGroup(ribbon, "곡선")

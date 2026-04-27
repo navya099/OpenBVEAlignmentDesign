@@ -118,12 +118,16 @@ class SegmentVisualizer(tk.Tk):
         idx = self.pi_index_var.get()
         self.controller.pi_ctrl.request_remove_pi(idx)
 
+    def edit_pi(self):
+        idx = self.pi_index_var.get()
+        self.controller.pi_ctrl.request_edit_pi(idx)
+
     def remove_curve(self):
         idx = self.pi_index_var.get()
         self.controller.curve_ctrl.request_remove_curve(idx)
 
     def reset_to_initial(self):
-        self.controller.request_reset_to_initial()
+        self.controller.pi_ctrl.request_reset_to_initial()
 
     def add_curve_ui(self):
         idx = self.pi_index_var.get()
@@ -153,7 +157,7 @@ class SegmentVisualizer(tk.Tk):
             p = self._event_to_xy(event)
             if p is None:
                 return
-            self.controller.pi_ctrl.request_edit_pi(p, self.dragging_index)
+            self.controller.pi_ctrl.request_drag_pi(p, self.dragging_index)
 
         elif self.dragging_midpoint_seg is not None:
             p = self._event_to_xy(event)
@@ -169,7 +173,7 @@ class SegmentVisualizer(tk.Tk):
         if p is None:
             return
         if self.dragging_index is not None:
-            self.controller.pi_ctrl.request_edit_pi(p, self.dragging_index)
+            self.controller.pi_ctrl.request_drag_pi(p, self.dragging_index)
         else:
             self.controller.mid_ctrl.request_edit_mid_point(self.dragging_midpoint_seg, p)
         self.dragging_index = None
