@@ -1,6 +1,8 @@
 # ui/ui_builder.py
 import tkinter as tk
-from ui.design_tokens import C, FONT_TITL, FONT_MONO, FONT_COORD
+
+from ui.context_menu.properties_ui import PropertiesUI
+from ui.design_tokens import C, FONT_TITL, FONT_MONO, FONT_COORD, FONT_UI
 from ui.pi_idx_widget import PiIndexWidget
 from ui.toolbar_grouop import ToolGroup, GroupSep
 
@@ -83,6 +85,7 @@ class UIBuilder:
 
         g_view = ToolGroup(ribbon, "보기")
         g_view.pack(side=tk.LEFT, fill=tk.Y)
+
         g_view.add_toggle("🗺", "지도보기", self.app.view_map_mode,
                           command=lambda: self.app.event_controller.emit(
                               "map_view_mode_changed"),
@@ -91,6 +94,11 @@ class UIBuilder:
                        lambda: self.app.event_controller.emit("map_updated"),
                        accent=C["teal"],
                        tip="현재 뷰포트의 지도 타일을 다시 불러옵니다")
+
+        g_view.add_btn("?", "선형 정보",
+                       lambda: PropertiesUI(self.app),
+                       accent=C["teal"],
+                       tip="현재 선형의 속성정보 테이블을 엽니다.")
 
         GroupSep(ribbon).pack(side=tk.LEFT)
 
