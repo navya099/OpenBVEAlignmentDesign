@@ -1,6 +1,8 @@
 # controller/curve_controller.py
 from tkinter import simpledialog, messagebox, filedialog
 
+from bve.extract_csv import save_bve
+
 
 class FileController:
     """파일 IO 컨트롤러"""
@@ -36,3 +38,12 @@ class FileController:
                 messagebox.showinfo("저장 완료", f"저장:\n{path}")
             except Exception as e:
                 messagebox.showerror("저장 실패", str(e))
+
+    def request_export_bve(self):
+        """BVE EXPORT 처리"""
+        try:
+            save_bve(self.app.collection.segment_list)
+            self.app.set_status(f"BVE 저장 완료")
+            messagebox.showinfo("저장 완료", f"저장:\n")
+        except Exception as e:
+            messagebox.showerror("BVE 저장 실패", str(e))
