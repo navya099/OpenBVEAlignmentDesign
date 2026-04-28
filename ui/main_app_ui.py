@@ -6,8 +6,10 @@ OPENBVE 선형설계 프로그램 - CAD 산업용 리본 툴바 리디자인
 ─────────────────────────────────────────────────
 """
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, filedialog
+from tkinter import ttk
 
+from coordinate_utils import convert_coordinates
+from data.segment.segment_helper import SegmentHelper
 from ui.build import UIBuilder
 from ui.design_tokens import C
 
@@ -30,8 +32,6 @@ class SegmentVisualizer(tk.Tk):
         self.mode_var = tk.StringVar(value="● 일반")
         self.coord_var = tk.StringVar(value="X: ─────  Y: ─────")
         self.pi_disp_var = tk.StringVar(value="PI: 1")
-        self.dragging_index        = None
-        self.dragging_midpoint_seg = None
         self._overlay_artists = []
         self.ploter = None
         self._configure_window()
@@ -42,8 +42,8 @@ class SegmentVisualizer(tk.Tk):
 
     def _configure_window(self):
         self.title("OPENBVE 선형설계 프로그램")
-        self.geometry("1440x860")
-        self.minsize(1100, 680)
+        self.geometry("1440x400")
+        self.minsize(1100, 400)
 
         self.configure(bg=C["chrome"])
         self._apply_ttk_style()
@@ -84,34 +84,13 @@ class SegmentVisualizer(tk.Tk):
     def set_coord(self, x: float, y: float):
         self.coord_var.set(f"X: {x:>12,.2f}  Y: {y:>12,.2f}")
 
-    def _event_to_xy(self, event):
-        """Matplotlib 이벤트를 물리 좌표(숫자)로 변환"""
-        if event.xdata is None or event.ydata is None:
-            return None
-
-        x, y = event.xdata, event.ydata
-
-        # 좌표계 변환은 UI가 지도 모드 상태를 알고 있으므로 여기서 처리
-        if self.view_map_mode.get():
-            try:
-                from pyproj import Transformer
-                t = Transformer.from_crs("EPSG:3857", "EPSG:5186", always_xy=True)
-                x, y = t.transform(x, y)
-            except Exception:
-                pass  # 변환 실패 시 원본 좌표 사용
-
-        # Point2d 객체로 만드는 대신, 순수 데이터(Tuple)를 컨트롤러에 전달
-        return x, y
-
     # ══════════════════════════════════
     # 이벤트 핸들러 (원본 로직 유지)
     # ══════════════════════════════════
-    def add_pi_click(self, event):
+    def add_pi_click(self, x,y):
         if not self.add_pi_mode.get():
             return
-        coord = self._event_to_xy(event)
-        if coord is None:
-            return
+        coord = (x, y)
         self.controller.pi_ctrl.request_add_pi(coord)
 
     def remove_pi(self):
@@ -137,68 +116,12 @@ class SegmentVisualizer(tk.Tk):
         idx = self.pi_index_var.get()
         self.controller.curve_ctrl.request_edit_to_curve_radius(idx)
 
-    def on_pick(self, event):
-        if not hasattr(self, 'ploter'):
-            return
-        if event.artist == self.ploter.pi_scatter:
-            self.dragging_index = event.ind[0]
-            self.dragging_midpoint_seg = None
-            return
-        for scatter, seg in self.ploter.mid_scatters:
-            if event.artist == scatter:
-                self.dragging_midpoint_seg = seg
-                self.dragging_index = None
-                return
-
-    def on_drag(self, event):
-        if event.xdata and event.ydata:
-            self.set_coord(event.xdata, event.ydata)
-        if self.dragging_index is not None:
-            p = self._event_to_xy(event)
-            if p is None:
-                return
-            self.controller.pi_ctrl.request_drag_pi(p, self.dragging_index)
-
-        elif self.dragging_midpoint_seg is not None:
-            p = self._event_to_xy(event)
-            if p is None:
-                return
-
-            self.controller.mid_ctrl.request_edit_mid_point(self.dragging_midpoint_seg, p)
-
-    def on_release(self, event):
-        if self.dragging_index is None and self.dragging_midpoint_seg is None:
-            return
-        p = self._event_to_xy(event)
-        if p is None:
-            return
-        if self.dragging_index is not None:
-            self.controller.pi_ctrl.request_drag_pi(p, self.dragging_index)
-        else:
-            self.controller.mid_ctrl.request_edit_mid_point(self.dragging_midpoint_seg, p)
-        self.dragging_index = None
-        self.dragging_midpoint_seg = None
-
     def save_to_json(self):
         self.controller.file_ctrl.request_save()
     def load_from_json(self):
         self.controller.file_ctrl.request_load()
     def export_bve(self):
         self.controller.file_ctrl.request_export_bve()
-
-    def setup_plotter(self, plotter_class, events):
-        """외부에서 주입된 플로터 클래스를 캔버스 프레임에 장착"""
-        self.ploter = plotter_class(
-            master=self.canvas_frams,  # 빌더가 만든 빈 자리
-            events=events,
-            collection=self.collection
-        )
-
-        # 이벤트 연결 (이건 UI 영역이므로 유지)
-        self.ploter.canvas.mpl_connect('pick_event', self.on_pick)
-        self.ploter.canvas.mpl_connect('motion_notify_event', self.on_drag)
-        self.ploter.canvas.mpl_connect('button_release_event', self.on_release)
-        self.ploter.canvas.mpl_connect('button_press_event', self.add_pi_click)
 
     def on_change_map_mode(self):
         """맵 모드 변경 요청"""

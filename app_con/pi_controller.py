@@ -83,12 +83,17 @@ class PIController:
         except Exception as e:
             messagebox.showerror("초기화 오류", str(e))
 
+    def request_drag_start(self):
+        self.events.emit('pi_drag_started')
+
+    def request_drag_finish(self):
+        self.events.emit('pi_dragged_finish')
+
     def request_drag_pi(self, coord, idx):
         """PI드래그 요청 처리"""
         try:
             coord = self._to_point(coord)
-            self.events.emit('pi_dragged', coord, idx)
-            self.events.emit('pi_dragged_finish')
+            self.events.emit('pi_dragging', coord, idx)
             self.app.set_status("초기화 완료")
         except Exception as e:
             messagebox.showerror("초기화 오류", str(e))

@@ -8,7 +8,7 @@ class PIEditor:
         self.collection = collection
 
         if self.events:
-            self.events.bind('pi_dragged', self.update_pi)
+            self.events.bind('pi_dragging', self.update_pi)
             self.events.bind('pi_removed', self.remove_pi)
             self.events.bind('pi_added', self.add_pi)
             self.events.bind('reset_to_initial', self.reset)

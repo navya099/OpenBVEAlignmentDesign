@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        #map { height: 100vh; width: 100%; background: #000; } /* 기본 배경 검정 */
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // 1. 지도 초기화 (CartoDB Dark Matter 같은 다크 모드 타일 추천)
+        var map = L.map('map').setView([37.5665, 126.9780], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var piMarkers = [];
+        var segmentLines = [];
+
+        // 2. 파이썬 통신 준비 완료 이벤트
+        window.addEventListener('pywebviewready', function() {
+            window.pywebview.api.on_map_ready();
+        });
+
+        // 3. 지도 클릭 시 PI 추가 이벤트
+        map.on('click', function(e) {
+            window.pywebview.api.on_map_click(e.latlng.lat, e.latlng.lng);
+        });
+
+        // 4. 핵심 렌더링 함수
+window.renderAll = function(dataStr) {
+    var data = typeof dataStr === "string" ? JSON.parse(dataStr) : dataStr;
+
+    // 기존 객체 완벽 제거
+    piMarkers.forEach(m => m.remove()); // removeLayer 대신 마커 자체 remove 호출이 확실함
+    segmentLines.forEach(l => l.remove());
+    piMarkers = [];
+    segmentLines = [];
+
+    // 선형 그리기
+    if (data.segments) {
+        data.segments.forEach(seg => {
+            var poly = L.polyline(seg.path, {
+                color: seg.color || 'cyan',
+                weight: 3,
+                opacity: 0.8,
+                interactive: false // 선형은 드래그/클릭 방해 안되게 무시
+            }).addTo(map);
+            segmentLines.push(poly);
+        });
+    }
+
+    // PI 마커 그리기
+    if (data.pi) {
+        data.pi.forEach(p => {
+            var marker = L.marker([p.lat, p.lng], {
+                draggable: true
+            }).addTo(map);
+
+            // 중요: 마커 객체에 인덱스 직접 주입 (클로저 버그 방지)
+            marker.pointIndex = p.index;
+
+            // 드래그 생명주기 연결 - 함수 내부에서 this 활용
+            marker.on('dragstart', function() {
+                if (window.pywebview && window.pywebview.api) {
+                    window.pywebview.api.on_pi_drag_start(this.pointIndex);
+                }
+            });
+
+            marker.on('drag', function(e) {
+                var latlng = e.target.getLatLng();
+                if (window.pywebview && window.pywebview.api) {
+                    // 실시간 드래그 좌표 전달
+                    window.pywebview.api.on_pi_dragging(this.pointIndex, latlng.lat, latlng.lng);
+                }
+            });
+
+            marker.on('dragend', function(e) {
+                var latlng = e.target.getLatLng();
+                if (window.pywebview && window.pywebview.api) {
+                    window.pywebview.api.on_pi_drag_end(this.pointIndex, latlng.lat, latlng.lng);
+                }
+            });
+
+            piMarkers.push(marker);
+        });
+    }
+};
+
+// 5. 선형 전용 업데이트 (드래그 시 호출)
+window.updatePathsOnly = function(segmentsStr) {
+    var segments = typeof segmentsStr === "string" ? JSON.parse(segmentsStr) : segmentsStr;
+
+    segmentLines.forEach(l => l.remove());
+    segmentLines = [];
+
+    if (segments) {
+        segments.forEach(seg => {
+            // 드래그 중에는 가벼운 점선으로 표시 (성능 및 가시성)
+            var poly = L.polyline(seg.path, {
+                color: 'yellow',
+                weight: 2,
+                dashArray: '5, 10',
+                interactive: false
+            }).addTo(map);
+            segmentLines.push(poly);
+        });
+    }
+};
+    </script>
+</body>
+</html>
