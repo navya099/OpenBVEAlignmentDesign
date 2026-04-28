@@ -1,11 +1,9 @@
 import tkinter as tk
-from tkinter import messagebox
-
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from pyproj import Transformer
 import contextily as ctx
-
+import numpy as np
 from data.segment.segment_helper import SegmentHelper
 
 transformer_to_3857 = Transformer.from_crs("EPSG:5186", "EPSG:3857", always_xy=True)
@@ -38,10 +36,10 @@ class Matplotter:
             self.events.bind('pi_dragged_finish', self.update_plot)
             self.events.bind('midpoint_dragged_finish', self.update_plot)
             self.events.bind('map_view_mode_changed_finish', self.update_plot)
-            self.events.bind('map_updated_finish', self.update_plot)
+            self.events.bind('map_updated_finish', self.update_map_zoom)
             self.events.bind('load_from_json_finish', self.reset_view_to_data)
 
-    def update_plot(self, force_xlim=None, force_ylim=None, zoom=None, view_map_mode=None):
+    def update_plot(self, force_xlim=None, force_ylim=None, view_map_mode=None):
         """전체 다시 그림 — 외부에서 force_xlim/ylim/zoom 전달 가능"""
         # 줌/이동 유지
         xlim = self.ax.get_xlim()
@@ -57,14 +55,28 @@ class Matplotter:
             return
 
         if view_map_mode:
+            #지도 모드에서는 xlim ,ylim 좌표변환 필요
+            xmin, xmax = xlim
+            ymin, ymax = ylim
+            # 좌하단
+            x1, y1 = transformer_to_3857.transform(xmin, ymin)
+
+            # 우상단
+            x2, y2 = transformer_to_3857.transform(xmax, ymax)
+
+            xlim = (x1, x2)
+            ylim = (y1, y2)
+
+            self.ax.set_xlim(xlim)
+            self.ax.set_ylim(ylim)
+
             # 전달된 force_* 를 _draw_map_basemap 에서 사용하게 함
-            self._draw_map_basemap(zoom=zoom,
-                                   force_xlim=force_xlim,
-                                   force_ylim=force_ylim)
+            self.ax.set_facecolor('white') #배경색 휜화면으로
+            self._draw_map_basemap(xlim=xlim, ylim=ylim)
 
         self._draw_segments(view_map_mode)
 
-        # 축 복원 또는 강제 적용
+        # force 가 있으면 우선 사용, 없으면 기본 extent 사용
         if force_xlim is not None and force_ylim is not None:
             self.ax.set_xlim(force_xlim)
             self.ax.set_ylim(force_ylim)
@@ -74,36 +86,16 @@ class Matplotter:
 
         self.canvas.draw_idle()
 
-    def _draw_map_basemap(self, zoom=None, force_xlim=None, force_ylim=None):
+    def _draw_map_basemap(self, zoom=None, xlim=None, ylim=None):
         """지도 배경 추가 — force_xlim/ylim 이 주어지면 그걸 우선 사용"""
         if not self.collection.coord_list:
             return
 
-        xs, ys = zip(*[transformer_to_3857.transform(pt.x, pt.y)
-                       for pt in self.collection.coord_list])
-
-        # default extent (데이터 기반)
-        margin_x = (max(xs) - min(xs)) * 0.15 or 500
-        margin_y = (max(ys) - min(ys)) * 0.15 or 500
-        default_xlim = (min(xs) - margin_x, max(xs) + margin_x)
-        default_ylim = (min(ys) - margin_y, max(ys) + margin_y)
-
-        # force 가 있으면 우선 사용, 없으면 기본 extent 사용
-        if force_xlim is not None and force_ylim is not None:
-            self.ax.set_xlim(force_xlim)
-            self.ax.set_ylim(force_ylim)
-        else:
-            # 최초 표시나 강제 재계산 시 기본 영역 적용
-            self.ax.set_xlim(default_xlim)
-            self.ax.set_ylim(default_ylim)
-
-        self.ax.set_aspect('equal', adjustable='datalim')
-
         # === zoom 결정: 호출자가 줌 전달하면 사용, 아니면 데이터 기반 계산 ===
-        import numpy as np
+
         if zoom is None:
-            dx = self.ax.get_xlim()[1] - self.ax.get_xlim()[0]
-            dy = self.ax.get_ylim()[1] - self.ax.get_ylim()[0]
+            dx = xlim[1] - xlim[0]
+            dy = ylim[1] - ylim[0]
             max_dim = max(dx, dy)
             zoom = int(18 - np.log2(max_dim / 500))
             zoom = int(np.clip(zoom, 5, 18))
@@ -184,3 +176,32 @@ class Matplotter:
 
         # update_plot 호출 시 force_xlim/ylim 전달
         self.update_plot(force_xlim=(x_min, x_max), force_ylim=(y_min, y_max))
+
+    def update_map_zoom(self, view_map_mode=None):
+        """현재 뷰 범위 기반으로 지도 타일만 다시 로드"""
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        dx = xlim[1] - xlim[0]
+        dy = ylim[1] - ylim[0]
+        max_dim = max(dx, dy)
+
+        zoom = int(18 - np.log2(max_dim / 500))
+        zoom = int(np.clip(zoom, 5, 18))
+
+        # 현재 지도 타일만 다시 추가 (Axes는 그대로 유지)
+        # 기존 타일 제거
+        for im in list(self.ax.images):
+            im.remove()
+
+        # 새 타일 불러오기
+        ctx.add_basemap(
+            self.ax,
+            crs="EPSG:3857",
+            source=ctx.providers.OpenStreetMap.Mapnik,
+            zoom=zoom
+        )
+
+        # 기존 확대/이동 상태 그대로 복원
+        self.ax.set_xlim(xlim)
+        self.ax.set_ylim(ylim)
+        self.canvas.draw_idle()

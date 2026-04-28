@@ -183,6 +183,8 @@ class SegmentVisualizer(tk.Tk):
         self.controller.file_ctrl.request_save()
     def load_from_json(self):
         self.controller.file_ctrl.request_load()
+    def export_bve(self):
+        self.controller.file_ctrl.request_export_bve()
 
     def setup_plotter(self, plotter_class, events):
         """외부에서 주입된 플로터 클래스를 캔버스 프레임에 장착"""
@@ -197,3 +199,11 @@ class SegmentVisualizer(tk.Tk):
         self.ploter.canvas.mpl_connect('motion_notify_event', self.on_drag)
         self.ploter.canvas.mpl_connect('button_release_event', self.on_release)
         self.ploter.canvas.mpl_connect('button_press_event', self.add_pi_click)
+
+    def on_change_map_mode(self):
+        """맵 모드 변경 요청"""
+        self.controller.view_ctrl.request_map_mode_change(self.view_map_mode.get())
+
+    def on_update_map(self):
+        """맵 업데이트 요청"""
+        self.controller.view_ctrl.request_update_map(self.view_map_mode.get())

@@ -2,6 +2,7 @@ from app_con.cuve_controllr import CurveController
 from app_con.file_controller import FileController
 from app_con.mp_controller import MidPointController
 from app_con.pi_controller import PIController
+from app_con.view_controller import ViewController
 from curve_edit.curve_editor import CurveEditor
 from data.segment.segment_collection import SegmentCollection
 from event.event_controller import EventController
@@ -44,6 +45,7 @@ class AppController:
         self.pi_ctrl = PIController(self.app, self.event_controller)
         self.mid_ctrl = MidPointController(self.app, self.event_controller)
         self.file_ctrl = FileController(self.app, self.event_controller)
+        self.view_ctrl = ViewController(self.app, self.event_controller)
 
     def run(self):
         self.app.mainloop()

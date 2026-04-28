@@ -87,11 +87,10 @@ class UIBuilder:
         g_view.pack(side=tk.LEFT, fill=tk.Y)
 
         g_view.add_toggle("🗺", "지도보기", self.app.view_map_mode,
-                          command=lambda: self.app.event_controller.emit(
-                              "map_view_mode_changed"),
+                          command=self.app.on_change_map_mode,
                           tip="배경 지도 타일을 표시합니다")
         g_view.add_btn("↺", "지도갱신",
-                       lambda: self.app.event_controller.emit("map_updated"),
+                       command= self.app.on_update_map,
                        accent=C["teal"],
                        tip="현재 뷰포트의 지도 타일을 다시 불러옵니다")
 
@@ -109,7 +108,8 @@ class UIBuilder:
                        tip="선형을 JSON 파일로 저장합니다")
         g_file.add_btn("📂", "로드", self.app.load_from_json,
                        tip="JSON 파일에서 선형을 불러옵니다")
-
+        g_file.add_btn("💾", "BVE로 저장", self.app.export_bve,
+                       tip="선형을 bve 파일로 저장합니다")
         GroupSep(ribbon).pack(side=tk.LEFT)
 
         g_sys = ToolGroup(ribbon, "시스템")
