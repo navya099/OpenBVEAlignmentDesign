@@ -25,38 +25,51 @@ class MapPlotter:
     def set_window(self, window):
         self.webview_window = window
 
+    # map_plotter.py
+
     def update_plot(self, *args, **kwargs):
-        """전체 데이터를 지도로 배달 (마커 재생성 포함)"""
-        if not self.webview_window:
-            return
-        # ✅ bridge.dragging_index를 직접 확인 (경로 명확화)
-        if self.bridge.dragging_index is not None:
+        if not self.webview_window or self.bridge.dragging_index is not None:
             return
 
         import time
         t0 = time.perf_counter()
 
-
-
-
+        # 1. PI 마커 및 PI 보조선 (BP -> IP -> EP 점선)
         pi_list = []
+        raw_pi_coords = []  # 보조선용
         for i, p in enumerate(self.collection.coord_list):
             coord = convert_coordinates([p.x, p.y], 5186, 4326)
-            pi_list.append({'index': i, 'lat': coord[1], 'lng': coord[0]})
+            lat, lng = coord[1], coord[0]
+            label = "BP" if i == 0 else ("EP" if i == len(self.collection.coord_list) - 1 else f"IP.{i}")
+            pi_list.append({'index': i, 'lat': lat, 'lng': lng, 'label': label})
+            raw_pi_coords.append([lat, lng])
 
+        # 2. 곡선 세그먼트 및 Midpoint
         segments_list = []
-        for seg in self.collection.segment_list:
+        midpoints_list = []
+        for i, seg in enumerate(self.collection.segment_list):
+            # 선형(Path) 추출
             points = SegmentHelper.segment_to_xy(seg)
             path = [[lat, lng] for lng, lat in (convert_coordinates(pt, 5186, 4326) for pt in points)]
-            segments_list.append({'path': path, 'color': 'red'})
+            segments_list.append({'path': path, 'color': SegmentHelper.get_color(seg)})
 
-        payload = json.dumps({'pi': pi_list, 'segments': segments_list})
+            # 중간점(Midpoint) 추출
+            mid = SegmentHelper.get_midpoint(seg)
+            if mid:
+                m_coord = convert_coordinates(mid, 5186, 4326)
+                midpoints_list.append({'index': i, 'lat': m_coord[1], 'lng': m_coord[0]})
+
+        # 최종 페이로드 구성
+        payload = json.dumps({
+            'pi': pi_list,
+            'pi_line': raw_pi_coords,  # PI끼리 연결하는 빨간 점선
+            'segments': segments_list,
+            'midpoints': midpoints_list
+        })
+
         t1 = time.perf_counter()
         self.webview_window.evaluate_js(f"window.renderAll({payload})")
-        t2 = time.perf_counter()
-
-        print(f"  직렬화:        {(t1 - t0) * 1000:.1f}ms")
-        print(f"  evaluate_js:   {(t2 - t1) * 1000:.1f}ms")
+        print(f"  데이터 준비: {(t1 - t0) * 1000:.1f}ms")
 
     def update_segments_only(self, *args, **kwargs):
         """드래그 시 노란색 점선으로 곡선만 빠르게 업데이트 (마커 건드리지 않음)"""

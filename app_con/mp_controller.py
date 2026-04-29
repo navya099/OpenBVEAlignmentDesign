@@ -16,7 +16,7 @@ class MidPointController:
         try:
             coord = self._to_point(point)
             self.events.emit('midpoint_dragged', seg, coord)
-            self.events.emit('midpoint_dragged_finish')
+
 
         except Exception as e:
             messagebox.showerror("드래그 오류", str(e))
@@ -26,3 +26,8 @@ class MidPointController:
         if isinstance(coord, Point2d):
             return coord
         return Point2d(coord[0], coord[1])
+
+    def request_drag_mid_point_finish(self):
+        """MidPoint 편집 요청 처리"""
+        # 2. 비즈니스 신호 발생
+        self.events.emit('midpoint_dragged_finish')
