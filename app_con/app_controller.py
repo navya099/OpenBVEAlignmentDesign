@@ -89,7 +89,7 @@ class AppController:
         # 4. 분석이 끝난 후, 필요한 참조를 '후주입'함
         # MapBridge 내부에서 self._controller와 같이 언더바를 붙여서 관리해야 안전합니다.
         self.map_bridge.init_with_app(self, self._map_window)
-        self.ploter = MapPlotter(self.event_controller, collection=self.collection)
+        self.ploter = MapPlotter(self.event_controller, collection=self.collection, bridge=self.map_bridge)
         self.ploter.set_window(self._map_window)
         print("WebView를 메인 스레드에서 시작합니다...")
         webview.start(debug=True)

@@ -3,10 +3,10 @@ from coordinate_utils import convert_coordinates
 from data.segment.segment_helper import SegmentHelper
 
 class MapPlotter:
-    def __init__(self, events, collection, master=None): # master(AppController/UI) 추가
+    def __init__(self, events, collection, bridge=None): # master(AppController/UI) 추가
         self.events = events
         self.collection = collection
-        self.master = master  # dragging_index 확인을 위해 필요
+        self.bridge = bridge  # dragging_index 확인을 위해 필요
         self.webview_window = None
 
         if self.events:
@@ -29,12 +29,15 @@ class MapPlotter:
         """전체 데이터를 지도로 배달 (마커 재생성 포함)"""
         if not self.webview_window:
             return
+        # ✅ bridge.dragging_index를 직접 확인 (경로 명확화)
+        if self.bridge.dragging_index is not None:
+            return
 
-        # [핵심 추가] 드래그 중에는 전체 갱신(renderAll)을 절대 하지 않음!
-        # 마커가 새로 그려지는 순간 드래그 이벤트 연결이 끊어집니다.
-        if self.master and hasattr(self.master, 'dragging_index'):
-            if self.master.dragging_index is not None:
-                return
+        import time
+        t0 = time.perf_counter()
+
+
+
 
         pi_list = []
         for i, p in enumerate(self.collection.coord_list):
@@ -48,7 +51,12 @@ class MapPlotter:
             segments_list.append({'path': path, 'color': 'red'})
 
         payload = json.dumps({'pi': pi_list, 'segments': segments_list})
+        t1 = time.perf_counter()
         self.webview_window.evaluate_js(f"window.renderAll({payload})")
+        t2 = time.perf_counter()
+
+        print(f"  직렬화:        {(t1 - t0) * 1000:.1f}ms")
+        print(f"  evaluate_js:   {(t2 - t1) * 1000:.1f}ms")
 
     def update_segments_only(self, *args, **kwargs):
         """드래그 시 노란색 점선으로 곡선만 빠르게 업데이트 (마커 건드리지 않음)"""

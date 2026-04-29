@@ -6,109 +6,167 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-        #map { height: 100vh; width: 100%; background: #000; } /* 기본 배경 검정 */
+        #map { height: 100vh; width: 100%; background: #000; }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <script>
-        // 1. 지도 초기화 (CartoDB Dark Matter 같은 다크 모드 타일 추천)
-        var map = L.map('map').setView([37.5665, 126.9780], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+<div id="map"></div>
+<script>
+    // ── 지도 초기화 ──────────────────────────────────────
+    var map = L.map('map').setView([37.5665, 126.9780], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        var piMarkers = [];
-        var segmentLines = [];
+    // ── 상태 변수 ────────────────────────────────────────
+    var piMarkers    = [];
+    var segmentLines = [];
+    var markerMap    = {};   // { index: marker } - 마커 빠른 조회용
 
-        // 2. 파이썬 통신 준비 완료 이벤트
-        window.addEventListener('pywebviewready', function() {
-            window.pywebview.api.on_map_ready();
-        });
+    // 드래그 상태 (3중 차단용)
+    var isDragging       = false;
+    var dragThrottleTimer = null;
 
-        // 3. 지도 클릭 시 PI 추가 이벤트
-        map.on('click', function(e) {
-            window.pywebview.api.on_map_click(e.latlng.lat, e.latlng.lng);
-        });
+    // 1. 드래그 중 호출 차단 강화
+    function throttledDragCall(index, lat, lng) {
+        if (!isDragging) return;
 
-        // 4. 핵심 렌더링 함수
-window.renderAll = function(dataStr) {
-    var data = typeof dataStr === "string" ? JSON.parse(dataStr) : dataStr;
+        if (dragThrottleTimer) return;
 
-    // 기존 객체 완벽 제거
-    piMarkers.forEach(m => m.remove()); // removeLayer 대신 마커 자체 remove 호출이 확실함
-    segmentLines.forEach(l => l.remove());
-    piMarkers = [];
-    segmentLines = [];
-
-    // 선형 그리기
-    if (data.segments) {
-        data.segments.forEach(seg => {
-            var poly = L.polyline(seg.path, {
-                color: seg.color || 'cyan',
-                weight: 3,
-                opacity: 0.8,
-                interactive: false // 선형은 드래그/클릭 방해 안되게 무시
-            }).addTo(map);
-            segmentLines.push(poly);
-        });
+        dragThrottleTimer = setTimeout(function() {
+            dragThrottleTimer = null;
+            // 타이머가 끝난 시점에도 여전히 드래그 중인지 다시 확인
+            if (isDragging && window.pywebview?.api?.on_pi_dragging) {
+                window.pywebview.api.on_pi_dragging(index, lat, lng);
+            }
+        }, 40); // 50ms -> 40ms로 살짝 조절 (초당 25프레임 수준)
     }
 
-    // PI 마커 그리기
-    if (data.pi) {
-        data.pi.forEach(p => {
-            var marker = L.marker([p.lat, p.lng], {
-                draggable: true
-            }).addTo(map);
+    // ── Python 통신 준비 완료 ────────────────────────────
+    window.addEventListener('pywebviewready', function() {
+        window.pywebview.api.on_map_ready();
+    });
 
-            // 중요: 마커 객체에 인덱스 직접 주입 (클로저 버그 방지)
-            marker.pointIndex = p.index;
+    // ── 지도 클릭 → PI 추가 ──────────────────────────────
+    map.on('click', function(e) {
+        if (isDragging) return;  // 드래그 중 클릭 이벤트 무시
+        window.pywebview?.api?.on_map_click(e.latlng.lat, e.latlng.lng);
+    });
 
-            // 드래그 생명주기 연결 - 함수 내부에서 this 활용
-            marker.on('dragstart', function() {
-                if (window.pywebview && window.pywebview.api) {
-                    window.pywebview.api.on_pi_drag_start(this.pointIndex);
-                }
-            });
-
-            marker.on('drag', function(e) {
-                var latlng = e.target.getLatLng();
-                if (window.pywebview && window.pywebview.api) {
-                    // 실시간 드래그 좌표 전달
-                    window.pywebview.api.on_pi_dragging(this.pointIndex, latlng.lat, latlng.lng);
-                }
-            });
-
-            marker.on('dragend', function(e) {
-                var latlng = e.target.getLatLng();
-                if (window.pywebview && window.pywebview.api) {
-                    window.pywebview.api.on_pi_drag_end(this.pointIndex, latlng.lat, latlng.lng);
-                }
-            });
-
-            piMarkers.push(marker);
+    // ── 마커 이벤트 바인딩 (renderAll 내부에서 호출) ─────
+    function bindMarkerEvents(marker) {
+        marker.on('dragstart', function() {
+            isDragging = true;
+            window.pywebview?.api?.on_pi_drag_start(this.pointIndex);
         });
-    }
-};
 
-// 5. 선형 전용 업데이트 (드래그 시 호출)
-window.updatePathsOnly = function(segmentsStr) {
-    var segments = typeof segmentsStr === "string" ? JSON.parse(segmentsStr) : segmentsStr;
-
-    segmentLines.forEach(l => l.remove());
-    segmentLines = [];
-
-    if (segments) {
-        segments.forEach(seg => {
-            // 드래그 중에는 가벼운 점선으로 표시 (성능 및 가시성)
-            var poly = L.polyline(seg.path, {
-                color: 'yellow',
-                weight: 2,
-                dashArray: '5, 10',
-                interactive: false
-            }).addTo(map);
-            segmentLines.push(poly);
+        marker.on('drag', function(e) {
+            var ll = e.target.getLatLng();
+            throttledDragCall(this.pointIndex, ll.lat, ll.lng);
         });
+
+        // 2. dragend 이벤트 핸들러
+        marker.on('dragend', function(e) {
+            isDragging = false; // 즉시 false
+            if (dragThrottleTimer) {
+                clearTimeout(dragThrottleTimer);
+                dragThrottleTimer = null;
+            }
+
+            var ll = e.target.getLatLng();
+            // Python에게 최종 좌표 전달
+            window.pywebview?.api?.on_pi_drag_end(this.pointIndex, ll.lat, ll.lng);
+            });
     }
-};
-    </script>
+
+    // ── 전체 재렌더링 (PI 추가/삭제 등 구조 변경 시) ─────
+    window.renderAll = function(dataStr) {
+        var data = typeof dataStr === "string" ? JSON.parse(dataStr) : dataStr;
+
+        // 기존 객체 완전 제거
+        piMarkers.forEach(m => m.remove());
+        segmentLines.forEach(l => l.remove());
+        piMarkers    = [];
+        segmentLines = [];
+        markerMap    = {};
+
+        // 선형 그리기
+        if (data.segments) {
+            data.segments.forEach(function(seg) {
+                var poly = L.polyline(seg.path, {
+                    color: seg.color || 'cyan',
+                    weight: 3,
+                    opacity: 0.8,
+                    interactive: false
+                }).addTo(map);
+                segmentLines.push(poly);
+            });
+        }
+
+        // PI 마커 그리기
+        if (data.pi) {
+            data.pi.forEach(function(p) {
+                var marker = L.marker([p.lat, p.lng], {
+                    draggable: true
+                }).addTo(map);
+
+                marker.pointIndex = p.index;
+                markerMap[p.index] = marker;
+
+                bindMarkerEvents(marker);  // 이벤트 바인딩 분리
+                piMarkers.push(marker);
+            });
+        }
+    };
+
+    // ── dragend 전용: 마커 재생성 없이 위치+선형만 갱신 ──
+    window.updateAfterDrag = function(dataStr) {
+        var data = typeof dataStr === "string" ? JSON.parse(dataStr) : dataStr;
+
+        // 선형만 교체 (빨간 실선으로 복귀)
+        segmentLines.forEach(l => l.remove());
+        segmentLines = [];
+
+        if (data.segments) {
+            data.segments.forEach(function(seg) {
+                var poly = L.polyline(seg.path, {
+                    color: seg.color || 'cyan',
+                    weight: 3,
+                    opacity: 0.8,
+                    interactive: false
+                }).addTo(map);
+                segmentLines.push(poly);
+            });
+        }
+
+        // 마커는 위치만 이동 (재생성 없음 → 이벤트 유지)
+        if (data.pi) {
+            data.pi.forEach(function(p) {
+                var marker = markerMap[p.index];
+                if (marker) {
+                    marker.setLatLng([p.lat, p.lng]);
+                }
+            });
+        }
+    };
+
+    // ── 드래그 중 선형만 점선으로 업데이트 ──────────────
+    window.updatePathsOnly = function(dataStr) {
+        var data = typeof dataStr === "string" ? JSON.parse(dataStr) : dataStr;
+
+        segmentLines.forEach(l => l.remove());
+        segmentLines = [];
+
+        if (data.segments) {
+            data.segments.forEach(function(seg) {
+                var poly = L.polyline(seg.path, {
+                    color: 'yellow',
+                    weight: 2,
+                    dashArray: '5, 10',
+                    interactive: false
+                }).addTo(map);
+                segmentLines.push(poly);
+            });
+        }
+    };
+</script>
 </body>
 </html>
