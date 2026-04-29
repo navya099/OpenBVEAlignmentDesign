@@ -46,3 +46,13 @@ class CadButton(tk.Frame):
         self._set_bg(C["btn_hover"])
         if self._cmd:
             self._cmd()
+
+    def set_text(self, new_text):
+        """하단 레이블의 텍스트를 동적으로 변경"""
+        if hasattr(self, '_lbl'):
+            self._lbl.config(text=new_text)
+
+    def set_icon(self, new_icon):
+        """상단 아이콘(이모지)을 동적으로 변경"""
+        if hasattr(self, '_ico'):
+            self._ico.config(text=new_icon)
