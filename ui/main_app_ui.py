@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from coordinate_utils import convert_coordinates
-from data.segment.segment_helper import SegmentHelper
+from myalignment.segment.segment_helper import SegmentHelper
 from ui.build import UIBuilder
 from ui.design_tokens import C
 

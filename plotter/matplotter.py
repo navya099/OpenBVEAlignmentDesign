@@ -1,6 +1,6 @@
 import json
 from coordinate_utils import convert_coordinates
-from data.segment.segment_helper import SegmentHelper
+from myalignment.segment.segment_helper import SegmentHelper
 
 class MapPlotter:
     def __init__(self, events, collection, bridge=None): # master(AppController/UI) 추가

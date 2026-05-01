@@ -1,4 +1,4 @@
-from data.alignment.exception.alignment_error import GroupNullError
+from myalignment.exception.alignment_error import GroupNullError
 from transaction import Transaction
 import math
 

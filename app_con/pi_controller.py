@@ -1,7 +1,7 @@
 # controller/curve_controller.py
 from tkinter import simpledialog, messagebox
 
-from AutoCAD.point2d import Point2d
+from autocad.point2d import Point2d
 
 
 class PIController:

@@ -7,7 +7,7 @@ from app_con.mp_controller import MidPointController
 from app_con.pi_controller import PIController
 from app_con.view_controller import ViewController
 from curve_edit.curve_editor import CurveEditor
-from data.segment.segment_collection import SegmentCollection
+from myalignment.segment.segment_collection import SegmentCollection
 from event.event_controller import EventController
 from map.map_bridge import MapBridge
 from mid_edit.mid_editor import MidPointEditor

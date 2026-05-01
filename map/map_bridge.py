@@ -1,7 +1,6 @@
 # map_bridge.py
 import time
 
-from AutoCAD.point2d import Point2d
 from coordinate_utils import convert_coordinates
 
 

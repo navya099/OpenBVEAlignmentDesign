@@ -1,7 +1,7 @@
 # ── 속성 창 ─────────────────────────
 from tkinter import ttk
 
-from data.segment.segment_helper import SegmentHelper
+from myalignment.segment.segment_helper import SegmentHelper
 from ui.design_tokens import FONT_MONO, C, FONT_TITL, FONT_GRP
 from ui.toolbar import CadButton
 import tkinter as tk

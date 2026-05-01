@@ -1,6 +1,5 @@
 from curvedirection import CurveDirection
-from data.segment.curve_segment import CurveSegment
-
+from myalignment.segment.curve_segment import CurveSegment
 
 def extract_horizon(segment_list):
     """BVE 수평선형(.bve) 텍스트 추출"""
