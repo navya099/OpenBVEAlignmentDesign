@@ -1,4 +1,4 @@
-from curvedirection import CurveDirection
+from myalignment.utils.curvedirection import CurveDirection
 from myalignment.segment.curve_segment import CurveSegment
 
 def extract_horizon(segment_list):

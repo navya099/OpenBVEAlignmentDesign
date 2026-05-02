@@ -1,5 +1,5 @@
 import json
-from coordinate_utils import convert_coordinates
+from utils.coordinate_utils import convert_coordinates
 from myalignment.segment.segment_helper import SegmentHelper
 
 class MapPlotter:

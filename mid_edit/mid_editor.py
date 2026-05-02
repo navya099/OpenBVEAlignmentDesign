@@ -1,5 +1,4 @@
 from myalignment.exception.alignment_error import GroupNullError
-from transaction import Transaction
 import math
 
 class MidPointEditor:

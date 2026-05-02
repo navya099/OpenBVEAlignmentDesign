@@ -1,7 +1,7 @@
 # map_bridge.py
 import time
 
-from coordinate_utils import convert_coordinates
+from utils.coordinate_utils import convert_coordinates
 
 
 class MapBridge:

@@ -8,7 +8,7 @@ OPENBVE 선형설계 프로그램 - CAD 산업용 리본 툴바 리디자인
 import tkinter as tk
 from tkinter import ttk
 
-from coordinate_utils import convert_coordinates
+from utils.coordinate_utils import convert_coordinates
 from myalignment.segment.segment_helper import SegmentHelper
 from ui.build import UIBuilder
 from ui.design_tokens import C
